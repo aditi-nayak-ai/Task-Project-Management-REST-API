@@ -2,11 +2,11 @@ import os
 import streamlit as st
 import requests
 import pandas as pd
- 
+
 API_URL = os.environ.get("API_URL", "https://task-project-management-rest-api.onrender.com")
- 
+
 st.set_page_config(page_title="Task Manager", layout="wide", page_icon="✅")
- 
+
 # ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -64,17 +64,17 @@ st.markdown("""
     .stButton > button:hover { background: #0f766e; }
 </style>
 """, unsafe_allow_html=True)
- 
- 
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
- 
+
 def auth_headers():
     return {"Authorization": f"Bearer {st.session_state.token}"}
- 
+
 def try_refresh_token():
     """
     Uses the stored refresh token to get a new access token without
-    forcing the user to log in again. Added alongside the backend's new
+    forcing the user to log in again. Added alongside the backend's
     /auth/refresh endpoint -- without this, issuing a refresh token from
     the API was pointless because nothing in the client ever used it.
     """
@@ -92,7 +92,7 @@ def try_refresh_token():
     except Exception:
         pass
     return False
- 
+
 def api_get(endpoint, params=None):
     try:
         r = requests.get(f"{API_URL}{endpoint}", headers=auth_headers(), params=params, timeout=15)
@@ -111,7 +111,7 @@ def api_get(endpoint, params=None):
         return data if isinstance(data, list) else [data]
     except Exception:
         return []
- 
+
 def api_post(endpoint, payload=None, form_data=None):
     try:
         kwargs = {"headers": auth_headers(), "timeout": 15}
@@ -128,14 +128,14 @@ def api_post(endpoint, payload=None, form_data=None):
     except Exception as e:
         st.error(f"Connection error: {e}")
     return None
- 
+
 def api_delete(endpoint):
     try:
         r = requests.delete(f"{API_URL}{endpoint}", headers=auth_headers(), timeout=15)
         return r.status_code == 204
     except Exception:
         return False
- 
+
 def api_patch(endpoint, payload):
     try:
         r = requests.patch(f"{API_URL}{endpoint}", json=payload, headers=auth_headers(), timeout=15)
@@ -147,21 +147,21 @@ def api_patch(endpoint, payload):
     except Exception as e:
         st.error(f"Connection error: {e}")
     return None
- 
- 
+
+
 # ── Session init ──────────────────────────────────────────────────────────────
- 
+
 for key, default in [("token", None), ("refresh_token", None), ("user", None)]:
     if key not in st.session_state:
         st.session_state[key] = default
- 
- 
+
+
 # ── Login / Register ──────────────────────────────────────────────────────────
- 
+
 if not st.session_state.token:
     st.markdown("<h1 style='color:#0d9488;margin-bottom:4px'>✅ Task Manager</h1>", unsafe_allow_html=True)
     st.markdown("<p style='color:#64748b;margin-bottom:24px'>A production-style REST API with JWT auth and role-based access control.</p>", unsafe_allow_html=True)
- 
+
     st.markdown("""
     <div class="demo-box">
         <b>🔑 Demo Credentials</b><br><br>
@@ -173,9 +173,9 @@ if not st.session_state.token:
         &nbsp;&nbsp;Email: <b>viewer@taskdemo.com</b> &nbsp;|&nbsp; Password: <b>Viewer@1234</b>
     </div>
     """, unsafe_allow_html=True)
- 
+
     tab_login, tab_register = st.tabs(["Login", "Register"])
- 
+
     with tab_login:
         email = st.text_input("Email", key="login_email")
         password = st.text_input("Password", type="password", key="login_pass")
@@ -198,7 +198,7 @@ if not st.session_state.token:
                         st.error(r.json().get("detail", "Login failed."))
                 except Exception as e:
                     st.error(f"Could not reach server: {e}")
- 
+
     with tab_register:
         st.caption("Register a new account. New users get 'viewer' role by default — an admin can promote you.")
         reg_email = st.text_input("Email", key="reg_email")
@@ -217,37 +217,37 @@ if not st.session_state.token:
                         st.error(r.json().get("detail", "Registration failed."))
                 except Exception as e:
                     st.error(f"Could not reach server: {e}")
- 
+
     st.stop()
- 
- 
+
+
 # ── Load current user ─────────────────────────────────────────────────────────
- 
+
 if not st.session_state.user:
     me = api_get("/users/me")
     st.session_state.user = me[0] if me else {}
- 
+
 user = st.session_state.user
 role = user.get("role", "user")
 is_admin = role == "admin"
 is_manager = role in ("admin", "manager")
- 
- 
+
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
- 
+
 with st.sidebar:
     st.markdown(f"<div style='font-size:22px;font-weight:700;margin-bottom:4px'>✅ Task Manager</div>", unsafe_allow_html=True)
     st.markdown(f"<div style='font-size:13px;color:#94a3b8;margin-bottom:20px'>{user.get('email','')}</div>", unsafe_allow_html=True)
- 
+
     role_colors = {"admin": "#f59e0b", "manager": "#60a5fa", "user": "#34d399"}
     st.markdown(f"<span style='background:{role_colors.get(role,'#94a3b8')};color:#1e293b;padding:3px 12px;border-radius:99px;font-size:12px;font-weight:700;text-transform:uppercase'>{role}</span>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
- 
+
     pages = ["Dashboard", "Projects", "Tasks"]
     if is_admin:
         pages.append("Users")
     menu = st.selectbox("Navigate", pages)
- 
+
     st.markdown("<br>" * 6, unsafe_allow_html=True)
     if st.button("Logout"):
         if st.session_state.get("refresh_token"):
@@ -263,23 +263,23 @@ with st.sidebar:
         st.session_state.refresh_token = None
         st.session_state.user = None
         st.rerun()
- 
+
     st.markdown("""
     <div style='font-size:11px;color:#475569;margin-top:8px'>
     Built with FastAPI · PostgreSQL<br>JWT Auth · RBAC · Deployed on Render
     </div>
     """, unsafe_allow_html=True)
- 
- 
+
+
 # ── Dashboard ─────────────────────────────────────────────────────────────────
- 
+
 if menu == "Dashboard":
     st.markdown("<div class='section-title'>📊 Overview</div>", unsafe_allow_html=True)
- 
+
     projects = api_get("/projects/", params={"limit": 100})
     tasks = api_get("/tasks/", params={"limit": 100})
     users = api_get("/users/", params={"limit": 100}) if is_admin else []
- 
+
     c1, c2, c3 = st.columns(3)
     with c1:
         st.markdown(f"""<div class='metric-card'>
@@ -296,7 +296,7 @@ if menu == "Dashboard":
             <div class='label'>{'All Tasks' if is_manager else 'My Tasks'}</div>
             <div class='value'>✅ {len(tasks)}</div>
         </div>""", unsafe_allow_html=True)
- 
+
     if tasks:
         df = pd.DataFrame(tasks)
         col_a, col_b = st.columns(2)
@@ -306,18 +306,18 @@ if menu == "Dashboard":
         with col_b:
             st.markdown("**Tasks by Priority**")
             st.bar_chart(df["priority"].value_counts(), color="#f59e0b")
- 
+
         st.markdown("**Recent Tasks**")
         display = df[["title", "status", "priority", "due_date"]].head(5).copy()
         display.columns = ["Title", "Status", "Priority", "Due Date"]
         st.dataframe(display, use_container_width=True, hide_index=True)
- 
- 
+
+
 # ── Projects ──────────────────────────────────────────────────────────────────
- 
+
 elif menu == "Projects":
     st.markdown("<div class='section-title'>📁 Projects</div>", unsafe_allow_html=True)
- 
+
     if is_admin:
         with st.expander("➕ Create New Project"):
             p_name = st.text_input("Project Name", key="proj_name")
@@ -330,14 +330,14 @@ elif menu == "Projects":
                     if result:
                         st.success(f"Project '{result['name']}' created.")
                         st.rerun()
- 
+
     projects = api_get("/projects/", params={"limit": 100})
     if projects:
         df = pd.DataFrame(projects)[["id", "name", "description", "owner_id", "created_at"]]
         df.columns = ["ID", "Name", "Description", "Owner ID", "Created At"]
         df["Created At"] = pd.to_datetime(df["Created At"]).dt.strftime("%d %b %Y")
         st.dataframe(df, use_container_width=True, hide_index=True)
- 
+
         if is_admin:
             st.markdown("---")
             st.markdown("**Delete Project**")
@@ -349,16 +349,16 @@ elif menu == "Projects":
                     st.rerun()
     else:
         st.info("No projects found.")
- 
- 
+
+
 # ── Tasks ─────────────────────────────────────────────────────────────────────
- 
+
 elif menu == "Tasks":
     st.markdown("<div class='section-title'>✅ Tasks</div>", unsafe_allow_html=True)
- 
+
     projects = api_get("/projects/", params={"limit": 100})
     project_map = {p["name"]: p["id"] for p in projects}
- 
+
     if is_manager:
         with st.expander("➕ Create New Task"):
             t_title = st.text_input("Title", key="task_title")
@@ -366,13 +366,13 @@ elif menu == "Tasks":
             t_status = st.selectbox("Status", ["todo", "in_progress", "done"], key="task_status")
             t_priority = st.selectbox("Priority", ["low", "medium", "high"], key="task_priority")
             t_due = st.date_input("Due Date (optional)", value=None, key="task_due")
- 
+
             if project_map:
                 t_proj = st.selectbox("Project", list(project_map.keys()), key="task_proj")
             else:
                 st.warning("No projects available. An admin must create a project first.")
                 t_proj = None
- 
+
             if st.button("Create Task"):
                 if not t_title.strip():
                     st.warning("Title is required.")
@@ -392,11 +392,11 @@ elif menu == "Tasks":
                     if result:
                         st.success(f"Task '{result['title']}' created.")
                         st.rerun()
- 
+
     tasks = api_get("/tasks/", params={"limit": 100})
     if tasks:
         df = pd.DataFrame(tasks)
- 
+
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
             status_filter = st.multiselect("Filter by Status", ["todo", "in_progress", "done"])
@@ -404,23 +404,23 @@ elif menu == "Tasks":
             priority_filter = st.multiselect("Filter by Priority", ["low", "medium", "high"])
         with col_f3:
             sort_col = st.selectbox("Sort by", ["created_at", "priority", "status", "title"])
- 
+
         if status_filter:
             df = df[df["status"].isin(status_filter)]
         if priority_filter:
             df = df[df["priority"].isin(priority_filter)]
         df = df.sort_values(sort_col)
- 
+
         display_cols = ["id", "title", "status", "priority", "due_date", "project_id", "assigned_to"]
         display_cols = [c for c in display_cols if c in df.columns]
         display = df[display_cols].copy()
         display.columns = [c.replace("_", " ").title() for c in display_cols]
- 
+
         if "Due Date" in display.columns:
             display["Due Date"] = pd.to_datetime(display["Due Date"], errors="coerce").dt.strftime("%d %b %Y")
- 
+
         st.dataframe(display, use_container_width=True, hide_index=True)
- 
+
         if is_manager:
             st.markdown("---")
             st.markdown("**Update Task Status**")
@@ -436,19 +436,19 @@ elif menu == "Tasks":
                     st.rerun()
     else:
         st.info("No tasks found." if is_manager else "No tasks assigned to you yet.")
- 
- 
+
+
 # ── Users (admin only) ────────────────────────────────────────────────────────
- 
+
 elif menu == "Users":
     st.markdown("<div class='section-title'>👥 Users</div>", unsafe_allow_html=True)
- 
+
     users = api_get("/users/", params={"limit": 100})
     if users:
         df = pd.DataFrame(users)[["id", "email", "role", "is_active"]]
         df.columns = ["ID", "Email", "Role", "Active"]
         st.dataframe(df, use_container_width=True, hide_index=True)
- 
+
         st.markdown("---")
         st.markdown("**Change User Role**")
         user_options = {u["email"]: u["id"] for u in users if u["email"] != user.get("email")}
