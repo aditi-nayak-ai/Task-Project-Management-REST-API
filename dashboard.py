@@ -1,8 +1,9 @@
+import os
 import streamlit as st
 import requests
 import pandas as pd
  
-API_URL = "https://task-project-management-rest-api.onrender.com"
+API_URL = os.environ.get("API_URL", "https://task-project-management-rest-api.onrender.com")
  
 st.set_page_config(page_title="Task Manager", layout="wide", page_icon="✅")
  
@@ -70,13 +71,39 @@ st.markdown("""
 def auth_headers():
     return {"Authorization": f"Bearer {st.session_state.token}"}
  
-def api_get(endpoint):
+def try_refresh_token():
+    """
+    Uses the stored refresh token to get a new access token without
+    forcing the user to log in again. Added alongside the backend's new
+    /auth/refresh endpoint -- without this, issuing a refresh token from
+    the API was pointless because nothing in the client ever used it.
+    """
+    if not st.session_state.get("refresh_token"):
+        return False
     try:
-        r = requests.get(f"{API_URL}{endpoint}", headers=auth_headers(), timeout=15)
+        r = requests.post(
+            f"{API_URL}/auth/refresh",
+            json={"refresh_token": st.session_state.refresh_token},
+            timeout=15,
+        )
+        if r.status_code == 200:
+            st.session_state.token = r.json()["access_token"]
+            return True
+    except Exception:
+        pass
+    return False
+ 
+def api_get(endpoint, params=None):
+    try:
+        r = requests.get(f"{API_URL}{endpoint}", headers=auth_headers(), params=params, timeout=15)
         if r.status_code == 401:
-            st.session_state.token = None
-            st.warning("Session expired. Please log in again.")
-            st.rerun()
+            if try_refresh_token():
+                r = requests.get(f"{API_URL}{endpoint}", headers=auth_headers(), params=params, timeout=15)
+            else:
+                st.session_state.token = None
+                st.session_state.refresh_token = None
+                st.warning("Session expired. Please log in again.")
+                st.rerun()
         if r.status_code == 403:
             return []
         r.raise_for_status()
@@ -124,7 +151,7 @@ def api_patch(endpoint, payload):
  
 # ── Session init ──────────────────────────────────────────────────────────────
  
-for key, default in [("token", None), ("user", None)]:
+for key, default in [("token", None), ("refresh_token", None), ("user", None)]:
     if key not in st.session_state:
         st.session_state[key] = default
  
@@ -161,8 +188,12 @@ if not st.session_state.token:
                                       data={"username": email, "password": password},
                                       timeout=15)
                     if r.status_code == 200:
-                        st.session_state.token = r.json()["access_token"]
+                        payload = r.json()
+                        st.session_state.token = payload["access_token"]
+                        st.session_state.refresh_token = payload["refresh_token"]
                         st.rerun()
+                    elif r.status_code == 429:
+                        st.error("Too many login attempts. Wait a minute and try again.")
                     else:
                         st.error(r.json().get("detail", "Login failed."))
                 except Exception as e:
@@ -219,7 +250,17 @@ with st.sidebar:
  
     st.markdown("<br>" * 6, unsafe_allow_html=True)
     if st.button("Logout"):
+        if st.session_state.get("refresh_token"):
+            try:
+                requests.post(
+                    f"{API_URL}/auth/logout",
+                    json={"refresh_token": st.session_state.refresh_token},
+                    timeout=5,
+                )
+            except Exception:
+                pass  # best-effort revoke; don't block logout on it
         st.session_state.token = None
+        st.session_state.refresh_token = None
         st.session_state.user = None
         st.rerun()
  
@@ -235,9 +276,9 @@ with st.sidebar:
 if menu == "Dashboard":
     st.markdown("<div class='section-title'>📊 Overview</div>", unsafe_allow_html=True)
  
-    projects = api_get("/projects/")
-    tasks = api_get("/tasks/")
-    users = api_get("/users/") if is_admin else []
+    projects = api_get("/projects/", params={"limit": 100})
+    tasks = api_get("/tasks/", params={"limit": 100})
+    users = api_get("/users/", params={"limit": 100}) if is_admin else []
  
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -290,7 +331,7 @@ elif menu == "Projects":
                         st.success(f"Project '{result['name']}' created.")
                         st.rerun()
  
-    projects = api_get("/projects/")
+    projects = api_get("/projects/", params={"limit": 100})
     if projects:
         df = pd.DataFrame(projects)[["id", "name", "description", "owner_id", "created_at"]]
         df.columns = ["ID", "Name", "Description", "Owner ID", "Created At"]
@@ -315,7 +356,7 @@ elif menu == "Projects":
 elif menu == "Tasks":
     st.markdown("<div class='section-title'>✅ Tasks</div>", unsafe_allow_html=True)
  
-    projects = api_get("/projects/")
+    projects = api_get("/projects/", params={"limit": 100})
     project_map = {p["name"]: p["id"] for p in projects}
  
     if is_manager:
@@ -352,7 +393,7 @@ elif menu == "Tasks":
                         st.success(f"Task '{result['title']}' created.")
                         st.rerun()
  
-    tasks = api_get("/tasks/")
+    tasks = api_get("/tasks/", params={"limit": 100})
     if tasks:
         df = pd.DataFrame(tasks)
  
@@ -402,7 +443,7 @@ elif menu == "Tasks":
 elif menu == "Users":
     st.markdown("<div class='section-title'>👥 Users</div>", unsafe_allow_html=True)
  
-    users = api_get("/users/")
+    users = api_get("/users/", params={"limit": 100})
     if users:
         df = pd.DataFrame(users)[["id", "email", "role", "is_active"]]
         df.columns = ["ID", "Email", "Role", "Active"]
