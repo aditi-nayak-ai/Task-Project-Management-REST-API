@@ -14,7 +14,8 @@ from app.core.config import settings
 from app.core.logging_config import configure_logging, logger
 from app.core.errors import register_exception_handlers
 from app.core.limiter import limiter
-from app.db.session import engine
+from app.db.session import engine, SessionLocal
+from app.db.seed import seed_first_admin
  
  
 def run_migrations() -> None:
@@ -58,9 +59,18 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("RUN_MIGRATIONS_ON_STARTUP=false; skipping migrations at boot.")
  
+    db = SessionLocal()
+    try:
+        seed_first_admin(db)
+    finally:
+        db.close()
+ 
     yield
  
-    engine.dispose()
+    try:
+        engine.dispose()
+    except Exception:
+        logger.warning("engine.dispose() raised during shutdown; ignoring.", exc_info=True)
  
  
 app = FastAPI(
@@ -114,3 +124,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     import uvicorn
     uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=False)
+ 
