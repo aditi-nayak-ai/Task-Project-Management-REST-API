@@ -15,6 +15,8 @@ class Task(Base):
     status = Column(SAEnum(TaskStatus), default=TaskStatus.todo, nullable=False)
     priority = Column(SAEnum(TaskPriority), default=TaskPriority.medium, nullable=False)
     due_date = Column(DateTime, nullable=True)
+    # See Project.version -- same optimistic-concurrency mechanism.
+    version = Column(Integer, default=1, nullable=False)
     created_at = Column(DateTime, default=utcnow, nullable=False)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
