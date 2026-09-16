@@ -5,6 +5,7 @@ from app.models.user import User, UserRole
 from app.schemas.user import UserResponse
 from app.utils.dependencies import get_current_user, require_role
 from app.utils.pagination import get_pagination
+from app.core.audit import record_audit
 
 router = APIRouter()
 
@@ -29,11 +30,19 @@ def update_role(
     user_id: int,
     role: UserRole = Query(...),
     db: Session = Depends(get_db),
-    _: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_role("admin")),
 ):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    # Privilege-escalation-adjacent action -- this is the one place a
+    # regular account can become an admin, so it gets an explicit
+    # before/after in the audit trail rather than relying on the
+    # generic "something changed" shape used elsewhere.
+    record_audit(
+        db, current_user, "user.role.update", "user", user.id,
+        detail={"from_role": user.role.value, "to_role": role.value},
+    )
     user.role = role
     db.commit()
     db.refresh(user)
