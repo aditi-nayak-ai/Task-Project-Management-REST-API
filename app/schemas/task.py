@@ -33,6 +33,8 @@ class TaskUpdate(BaseModel):
     priority: Optional[TaskPriority] = None
     due_date: Optional[datetime] = None
     assigned_to: Optional[int] = None
+    # Required: see ProjectUpdate.version.
+    version: int = Field(..., description="Version of the task last read by the client, for optimistic concurrency.")
 
 
 class TaskResponse(BaseModel):
@@ -46,5 +48,6 @@ class TaskResponse(BaseModel):
     due_date: Optional[datetime]
     project_id: int
     assigned_to: Optional[int]
+    version: int
     created_at: datetime
     updated_at: datetime
