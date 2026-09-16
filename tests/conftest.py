@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
 from app.db.base import Base
-from app.models import user, project, task, refresh_token  # noqa: F401 -- registers models on Base.metadata
+from app.models import user, project, task, refresh_token, project_manager, audit_log  # noqa: F401 -- registers models on Base.metadata
 from app.core.security import hash_password
 from app.models.user import User, UserRole
 
