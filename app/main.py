@@ -9,7 +9,7 @@ from alembic.config import Config
 from alembic import command
 from sqlalchemy import text
 
-from app.api import auth, users, projects, tasks
+from app.api import auth, users, projects, tasks, audit
 from app.core.config import settings
 from app.core.logging_config import configure_logging, logger
 from app.core.errors import register_exception_handlers
@@ -96,6 +96,7 @@ app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(users.router, prefix="/users", tags=["Users"])
 app.include_router(projects.router, prefix="/projects", tags=["Projects"])
 app.include_router(tasks.router, prefix="/tasks", tags=["Tasks"])
+app.include_router(audit.router, prefix="/audit-logs", tags=["Audit"])
 
 
 @app.get("/", tags=["Health"])
