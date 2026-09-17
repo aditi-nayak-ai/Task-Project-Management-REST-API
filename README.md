@@ -18,7 +18,7 @@ A production-style backend REST API built with **FastAPI**, **PostgreSQL**, **JW
  
 | Role | Email | Password | Access |
 |---|---|---|---|
-| Admin | admin@taskdemo.com | Admin@1234 | Full access — users, projects, tasks, role management |
+| Admin | admin@taskdemo.com | K#9v!mX7$zP2*qLt | Full access — users, projects, tasks, role management |
 | Manager | manager@taskdemo.com | Manager@1234 | Create and update tasks across all projects |
 | Viewer | viewer@taskdemo.com | Viewer@1234 | Read-only access to assigned tasks |
  
