@@ -13,7 +13,12 @@ def test_only_admin_can_create_project(client, admin_user, manager_user):
 
 def test_duplicate_project_name_returns_409_not_500(client, admin_user):
     admin_headers = auth_header(client, "admin@test.com", "AdminPass1!")
-    client.post("/projects/", json={"name": "Unique Name"}, headers=admin_headers)
+    project = client.post("/projects/", json={"name": "Visible Project"}, headers=admin_headers).json()
+    # Manager must be explicitly scoped to this project before they can
+    # act on it -- see _ensure_can_act_on_project in app/api/tasks.py.
+    client.post(f"/projects/{project['id']}/managers/{manager_user.id}", headers=admin_headers)
+    manager_headers = auth_header(client, "manager@test.com", "ManagerPass1!")
+
     r = client.post("/projects/", json={"name": "Unique Name"}, headers=admin_headers)
     # Regression test for the bug found in the original code: an unhandled
     # IntegrityError on the unique constraint used to propagate as a raw
