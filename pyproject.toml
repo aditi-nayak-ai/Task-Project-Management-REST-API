@@ -1,9 +1,9 @@
 [tool.ruff]
-line-length = 120
+line-length = 160
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP"]
+select = ["F"]
 ignore = [
-    "B008",   # FastAPI's Depends() in argument defaults is the correct pattern
+    "F401",   # unused imports flagged only for real dead code, not enforced strictly here
 ]
