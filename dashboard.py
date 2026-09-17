@@ -3,7 +3,7 @@ import streamlit as st
 import requests
 import pandas as pd
 
-API_URL = os.environ.get("API_URL", "https://task-project-management-rest-api.onrender.com")
+API_URL = os.environ.get("API_URL", "https://task-project-management-rest-api-1.onrender.com")
 
 st.set_page_config(page_title="Task Manager", layout="wide", page_icon="✅")
 
@@ -166,11 +166,11 @@ if not st.session_state.token:
     <div class="demo-box">
         <b>🔑 Demo Credentials</b><br><br>
         <b>Admin</b> — full access (create projects, manage users, assign roles)<br>
-        &nbsp;&nbsp;Email: <b>admin@taskdemo.com</b> &nbsp;|&nbsp; Password: <b>Admin@1234</b><br><br>
+        &nbsp;&nbsp;Email: <b>admin@taskdemo.com</b> &nbsp;|&nbsp; Password: <b>81iBtLus8J@</b><br><br>
         <b>Manager</b> — create and manage tasks<br>
-        &nbsp;&nbsp;Email: <b>manager@taskdemo.com</b> &nbsp;|&nbsp; Password: <b>Manager@1234</b><br><br>
+        &nbsp;&nbsp;Email: <b>manager@taskdemo.com</b> &nbsp;|&nbsp; Password: <b>muQ9OLT1ZZ!</b><br><br>
         <b>Viewer</b> — see only tasks assigned to them<br>
-        &nbsp;&nbsp;Email: <b>viewer@taskdemo.com</b> &nbsp;|&nbsp; Password: <b>Viewer@1234</b>
+        &nbsp;&nbsp;Email: <b>viewer@taskdemo.com</b> &nbsp;|&nbsp; Password: <b>bQ3wJlNj9N$</b>
     </div>
     """, unsafe_allow_html=True)
 
