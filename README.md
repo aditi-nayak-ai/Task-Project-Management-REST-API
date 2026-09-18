@@ -1,3 +1,4 @@
+<img width="1920" height="1080" alt="Page Login" src="https://github.com/user-attachments/assets/42f603c9-18f8-41b2-92d0-3f55b130d037" />
 # Task Management REST API
  
 ![CI/CD](https://github.com/aditi-nayak-ai/Task-Project-Management-REST-API/actions/workflows/ci-cd.yml/badge.svg)
@@ -72,8 +73,8 @@ A production-style backend REST API built with **FastAPI**, **PostgreSQL**, **JW
  
 | | |
 |---|---|
-| **Login** | ![Login](screenshots/login.png) |
-| **Admin Dashboard** | ![Admin Dashboard](screenshots/admin-dashboard.png) |
+| **Login** | <img width="1920" height="1080" alt="Page Login" src="https://github.com/user-attachments/assets/b7e04340-cbdd-42b9-99e5-7ae01a08b3ac" /> |
+| **Admin Dashboard** | <img width="1920" height="1080" alt="Admin Dashboard" src="https://github.com/user-attachments/assets/2937a320-5dbf-4046-bea4-d1644604358c" />|
 | **Users & Roles** | ![Users](screenshots/users.png) |
 | **Tasks** | ![Tasks](screenshots/tasks.png) |
  
