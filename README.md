@@ -1,4 +1,3 @@
-<img width="1920" height="1080" alt="Page Login" src="https://github.com/user-attachments/assets/42f603c9-18f8-41b2-92d0-3f55b130d037" />
 # Task Management REST API
  
 ![CI/CD](https://github.com/aditi-nayak-ai/Task-Project-Management-REST-API/actions/workflows/ci-cd.yml/badge.svg)
