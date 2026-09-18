@@ -11,6 +11,7 @@ st.set_page_config(page_title="Task Manager", layout="wide", page_icon="✅")
 st.markdown("""
 <style>
     [data-testid="stAppViewContainer"] { background: #f8fafc; }
+    [data-testid="stAppViewContainer"] * { color: #1e293b; }
     [data-testid="stSidebar"] { background: #1e293b; }
     [data-testid="stSidebar"] * { color: #f1f5f9 !important; }
     .metric-card {
@@ -71,6 +72,22 @@ st.markdown("""
 def auth_headers():
     return {"Authorization": f"Bearer {st.session_state.token}"}
 
+def extract_error_detail(response):
+    """
+    Safely pull an error message out of a response. Render's free tier can
+    return an HTML error page (e.g. during a cold start / 502) instead of
+    JSON -- calling .json() on that raises "Expecting value: line 1 column
+    1", which is confusing to see as a user-facing error. This gives a
+    clear message in that case instead of crashing the parse.
+    """
+    try:
+        return response.json().get("detail", f"Request failed with status {response.status_code}.")
+    except Exception:
+        return (
+            f"Server returned an unexpected response (status {response.status_code}). "
+            "It may be waking up from sleep -- wait a moment and try again."
+        )
+
 def try_refresh_token():
     """
     Uses the stored refresh token to get a new access token without
@@ -123,8 +140,7 @@ def api_post(endpoint, payload=None, form_data=None):
         r.raise_for_status()
         return r.json()
     except requests.exceptions.HTTPError as e:
-        detail = e.response.json().get("detail", str(e))
-        st.error(f"Error: {detail}")
+        st.error(f"Error: {extract_error_detail(e.response)}")
     except Exception as e:
         st.error(f"Connection error: {e}")
     return None
@@ -142,8 +158,7 @@ def api_patch(endpoint, payload):
         r.raise_for_status()
         return r.json()
     except requests.exceptions.HTTPError as e:
-        detail = e.response.json().get("detail", str(e))
-        st.error(f"Error: {detail}")
+        st.error(f"Error: {extract_error_detail(e.response)}")
     except Exception as e:
         st.error(f"Connection error: {e}")
     return None
@@ -186,7 +201,7 @@ if not st.session_state.token:
                 try:
                     r = requests.post(f"{API_URL}/auth/login",
                                       data={"username": email, "password": password},
-                                      timeout=15)
+                                      timeout=20)
                     if r.status_code == 200:
                         payload = r.json()
                         st.session_state.token = payload["access_token"]
@@ -195,7 +210,7 @@ if not st.session_state.token:
                     elif r.status_code == 429:
                         st.error("Too many login attempts. Wait a minute and try again.")
                     else:
-                        st.error(r.json().get("detail", "Login failed."))
+                        st.error(extract_error_detail(r))
                 except Exception as e:
                     st.error(f"Could not reach server: {e}")
 
@@ -210,11 +225,11 @@ if not st.session_state.token:
                 try:
                     r = requests.post(f"{API_URL}/auth/register",
                                       json={"email": reg_email, "password": reg_pass},
-                                      timeout=15)
+                                      timeout=20)
                     if r.status_code == 201:
                         st.success("Account created! Switch to the Login tab.")
                     else:
-                        st.error(r.json().get("detail", "Registration failed."))
+                        st.error(extract_error_detail(r))
                 except Exception as e:
                     st.error(f"Could not reach server: {e}")
 
