@@ -75,11 +75,8 @@ A production-style backend REST API built with **FastAPI**, **PostgreSQL**, **JW
 |---|---|
 | **Login** | <img width="1920" height="1080" alt="Page Login" src="https://github.com/user-attachments/assets/b7e04340-cbdd-42b9-99e5-7ae01a08b3ac" /> |
 | **Admin Dashboard** | <img width="1920" height="1080" alt="Admin Dashboard" src="https://github.com/user-attachments/assets/2937a320-5dbf-4046-bea4-d1644604358c" />|
-| **Users & Roles** | ![Users](screenshots/users.png) |
-| **Tasks** | ![Tasks](screenshots/tasks.png) |
- 
-### Demo Video
-[Watch a full walkthrough](https://your-video-link-here) *(Loom or an unlisted YouTube link — replace once recorded)*
+| **Users & Roles** | <img width="1920" height="1080" alt="User   Role" src="https://github.com/user-attachments/assets/463752f9-4f3b-446a-8bff-409cd54ce6a0" />|
+| **Tasks** | <img width="1920" height="1080" alt="Task" src="https://github.com/user-attachments/assets/83848064-ed62-44cd-ba65-acc41c06112e" />|
  
 ---
  
