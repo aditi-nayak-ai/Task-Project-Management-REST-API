@@ -68,8 +68,6 @@ A production-style backend REST API built with **FastAPI**, **PostgreSQL**, **JW
  
 ## Screenshots
  
-> Replace the paths below with your own images (e.g. in a `screenshots/` folder in the repo) once captured. Keep each file under ~300 KB — compress with [tinypng.com](https://tinypng.com) or [squoosh.app](https://squoosh.app) first.
- 
 | | |
 |---|---|
 | **Login** | <img width="1920" height="1080" alt="Page Login" src="https://github.com/user-attachments/assets/b7e04340-cbdd-42b9-99e5-7ae01a08b3ac" /> |
