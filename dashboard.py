@@ -81,8 +81,8 @@ st.markdown("""
         font-size: 13px;
         margin: 22px 0 6px;
     }
-    .footer-links { text-align: center; font-size: 13px; margin-top: 28px; color: #64748b; }
-    .footer-links a { color: #0d9488; text-decoration: none; font-weight: 600; }
+    .footer-links { text-align: center; font-size: 18px; margin-top: 26px; color: #64748b; }
+    .footer-links a { color: #0d9488; text-decoration: none; font-weight: 700; }
 </style>
 """, unsafe_allow_html=True)
  
