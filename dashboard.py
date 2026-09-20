@@ -217,17 +217,32 @@ DEMO_ACCOUNTS = [
     ("manager", "Manager", "manager@taskdemo.com", "DEMO_MANAGER_PASSWORD", "Manages tasks in assigned projects"),
     ("viewer", "Viewer", "viewer@taskdemo.com", "DEMO_VIEWER_PASSWORD", "Sees only tasks assigned to them"),
 ]
- 
- 
-def get_secret(name):
-    """Read a secret from Streamlit secrets (Cloud or .streamlit/secrets.toml), falling back to an env var."""
-    try:
-        value = st.secrets.get(name)
-    except Exception:
-        value = None
-    return value or os.environ.get(name)
- 
- 
+
+
+ def get_secret(name):
+    """
+    Read a demo password from an environment variable (Render, Docker, Streamlit
+    Cloud), or from a local .streamlit/secrets.toml if one exists.
+
+    st.secrets is only touched when a secrets file is actually present: on hosts
+    without one (like Render), merely reading st.secrets makes Streamlit print a
+    "No secrets found" error box on the page.
+    """
+    value = os.environ.get(name)
+    if value:
+        return value
+    secrets_files = (
+        os.path.expanduser(os.path.join("~", ".streamlit", "secrets.toml")),
+        os.path.join(os.getcwd(), ".streamlit", "secrets.toml"),
+    )
+    if any(os.path.exists(p) for p in secrets_files):
+        try:
+            return st.secrets.get(name)
+        except Exception:
+            return None
+    return None
+
+
 def warm_up_backend():
     """
     Render's free tier sleeps when idle and takes up to a minute to wake. Pinging
