@@ -219,7 +219,7 @@ DEMO_ACCOUNTS = [
 ]
 
 
- def get_secret(name):
+def get_secret(name):
     """
     Read a demo password from an environment variable (Render, Docker, Streamlit
     Cloud), or from a local .streamlit/secrets.toml if one exists.
