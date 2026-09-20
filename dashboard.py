@@ -1,5 +1,6 @@
 import os
 import threading
+import time
 import streamlit as st
 import requests
 import pandas as pd
@@ -81,8 +82,9 @@ st.markdown("""
         font-size: 13px;
         margin: 22px 0 6px;
     }
-    .footer-links { text-align: center; font-size: 18px; margin-top: 26px; color: #64748b; }
+    .footer-links { text-align: center; font-size: 17px; margin-top: 32px; color: #64748b; }
     .footer-links a { color: #0d9488; text-decoration: none; font-weight: 700; }
+    .footer-links a:hover { text-decoration: underline; }
 </style>
 """, unsafe_allow_html=True)
  
@@ -217,13 +219,13 @@ DEMO_ACCOUNTS = [
     ("manager", "Manager", "manager@taskdemo.com", "DEMO_MANAGER_PASSWORD", "Manages tasks in assigned projects"),
     ("viewer", "Viewer", "viewer@taskdemo.com", "DEMO_VIEWER_PASSWORD", "Sees only tasks assigned to them"),
 ]
-
-
+ 
+ 
 def get_secret(name):
     """
     Read a demo password from an environment variable (Render, Docker, Streamlit
     Cloud), or from a local .streamlit/secrets.toml if one exists.
-
+ 
     st.secrets is only touched when a secrets file is actually present: on hosts
     without one (like Render), merely reading st.secrets makes Streamlit print a
     "No secrets found" error box on the page.
@@ -241,8 +243,8 @@ def get_secret(name):
         except Exception:
             return None
     return None
-
-
+ 
+ 
 def warm_up_backend():
     """
     Render's free tier sleeps when idle and takes up to a minute to wake. Pinging
@@ -265,11 +267,19 @@ def warm_up_backend():
 def do_login(email, password):
     try:
         with st.spinner("Signing in... the server can take up to a minute to wake up."):
-            r = requests.post(
-                f"{API_URL}/auth/login",
-                data={"username": email, "password": password},
-                timeout=90,
-            )
+            r = None
+            for _ in range(4):
+                r = requests.post(
+                    f"{API_URL}/auth/login",
+                    data={"username": email, "password": password},
+                    timeout=90,
+                )
+                # 502/503/504 come from Render's proxy while the free-tier backend is
+                # still waking up. They never reach the app (so they don't count
+                # toward the login rate limit): wait a little and try again.
+                if r.status_code not in (502, 503, 504):
+                    break
+                time.sleep(10)
         if r.status_code == 200:
             payload = r.json()
             st.session_state.token = payload["access_token"]
@@ -725,4 +735,3 @@ elif menu == "Users":
             st.info("No other users to manage.")
     else:
         st.info("No users found.")
- 
