@@ -1,4 +1,5 @@
 import os
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.user import User, UserRole
@@ -19,6 +20,10 @@ def seed_first_admin(db: Session) -> None:
     exist yet (idempotent -- safe to leave on across restarts), and does
     nothing if ADMIN_EMAIL/ADMIN_PASSWORD aren't set so it's opt-in per
     environment rather than a surprise account showing up everywhere.
+
+    Under multiple workers, two of them can both see "no admin yet" and
+    race to insert. The loser hits a unique-email IntegrityError, which
+    is caught below so that worker keeps booting instead of crashing.
     """
     admin_email = os.environ.get("ADMIN_EMAIL")
     admin_password = os.environ.get("ADMIN_PASSWORD")
@@ -44,5 +49,9 @@ def seed_first_admin(db: Session) -> None:
         is_active=True,
     )
     db.add(admin)
-    db.commit()
-    logger.info("Seeded first admin account: %s", admin_email)
+    try:
+        db.commit()
+        logger.info("Seeded first admin account: %s", admin_email)
+    except IntegrityError:
+        db.rollback()
+        logger.info("Admin %s was created by another worker; skipping.", admin_email)
