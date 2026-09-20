@@ -434,18 +434,26 @@ elif menu == "Tasks":
         if "Due Date" in display.columns:
             display["Due Date"] = pd.to_datetime(display["Due Date"], errors="coerce").dt.strftime("%d %b %Y")
 
-        st.dataframe(display, use_container_width=True, hide_index=True)
+                st.dataframe(display, use_container_width=True, hide_index=True)
 
         if is_manager:
             st.markdown("---")
             st.markdown("**Update Task Status**")
             task_options = {f"#{t['id']} — {t['title']}": t["id"] for t in tasks}
+            task_versions = {t["id"]: t["version"] for t in tasks}
             selected_task = st.selectbox("Select Task", list(task_options.keys()), key="upd_task")
             new_status = st.selectbox("New Status", ["todo", "in_progress", "done"], key="upd_status")
             new_priority = st.selectbox("New Priority", ["low", "medium", "high"], key="upd_priority")
             if st.button("Update Task"):
-                result = api_patch(f"/tasks/{task_options[selected_task]}",
-                                   {"status": new_status, "priority": new_priority})
+                task_id = task_options[selected_task]
+                result = api_patch(
+                    f"/tasks/{task_id}",
+                    {
+                        "status": new_status,
+                        "priority": new_priority,
+                        "version": task_versions[task_id],
+                    },
+                )
                 if result:
                     st.success("Task updated.")
                     st.rerun()
