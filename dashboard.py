@@ -1,4 +1,5 @@
 import os
+import threading
 import streamlit as st
 import requests
 import pandas as pd
@@ -63,6 +64,25 @@ st.markdown("""
         font-weight: 600;
     }
     .stButton > button:hover { background: #0f766e; }
+    .tag {
+        display: inline-block;
+        padding: 3px 10px;
+        margin: 0 6px 6px 0;
+        border-radius: 99px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #f0fdfa;
+        color: #0f766e;
+        border: 1px solid #99f6e4;
+    }
+    .or-divider {
+        text-align: center;
+        color: #94a3b8;
+        font-size: 13px;
+        margin: 22px 0 6px;
+    }
+    .footer-links { text-align: center; font-size: 13px; margin-top: 28px; color: #64748b; }
+    .footer-links a { color: #0d9488; text-decoration: none; font-weight: 600; }
 </style>
 """, unsafe_allow_html=True)
  
@@ -186,6 +206,69 @@ def api_patch(endpoint, payload):
     return None
  
  
+GITHUB_URL = "https://github.com/aditi-nayak-ai/Task-Project-Management-REST-API"
+ 
+TECH_TAGS = ["FastAPI", "PostgreSQL", "JWT auth", "RBAC", "Audit log", "Optimistic locking", "Alembic", "CI/CD"]
+ 
+# (key, label, email, secret name, one-line description). The passwords are NOT
+# stored in this file: they come from Streamlit secrets or environment variables.
+DEMO_ACCOUNTS = [
+    ("admin", "Admin", "admin@taskdemo.com", "DEMO_ADMIN_PASSWORD", "Full access: projects, users, roles"),
+    ("manager", "Manager", "manager@taskdemo.com", "DEMO_MANAGER_PASSWORD", "Manages tasks in assigned projects"),
+    ("viewer", "Viewer", "viewer@taskdemo.com", "DEMO_VIEWER_PASSWORD", "Sees only tasks assigned to them"),
+]
+ 
+ 
+def get_secret(name):
+    """Read a secret from Streamlit secrets (Cloud or .streamlit/secrets.toml), falling back to an env var."""
+    try:
+        value = st.secrets.get(name)
+    except Exception:
+        value = None
+    return value or os.environ.get(name)
+ 
+ 
+def warm_up_backend():
+    """
+    Render's free tier sleeps when idle and takes up to a minute to wake. Pinging
+    the API in the background as soon as the login page opens means the server is
+    usually awake by the time a visitor clicks a button.
+    """
+    if st.session_state.get("warmed_up"):
+        return
+    st.session_state.warmed_up = True
+ 
+    def ping():
+        try:
+            requests.get(f"{API_URL}/", timeout=90)
+        except Exception:
+            pass
+ 
+    threading.Thread(target=ping, daemon=True).start()
+ 
+ 
+def do_login(email, password):
+    try:
+        with st.spinner("Signing in... the server can take up to a minute to wake up."):
+            r = requests.post(
+                f"{API_URL}/auth/login",
+                data={"username": email, "password": password},
+                timeout=90,
+            )
+        if r.status_code == 200:
+            payload = r.json()
+            st.session_state.token = payload["access_token"]
+            st.session_state.refresh_token = payload["refresh_token"]
+            st.session_state.user = None
+            st.rerun()
+        elif r.status_code == 429:
+            st.error("Too many login attempts. Wait a minute and try again.")
+        else:
+            st.error(extract_error_detail(r))
+    except Exception as e:
+        st.error(f"Could not reach server: {e}")
+ 
+ 
 # ── Session init ──────────────────────────────────────────────────────────────
  
 for key, default in [("token", None), ("refresh_token", None), ("user", None)]:
@@ -196,73 +279,72 @@ for key, default in [("token", None), ("refresh_token", None), ("user", None)]:
 # ── Login / Register ──────────────────────────────────────────────────────────
  
 if not st.session_state.token:
-    st.markdown("<h1 style='color:#0d9488;margin-bottom:4px'>✅ Task Manager</h1>", unsafe_allow_html=True)
-    st.markdown(
-        "<p style='color:#64748b;margin-bottom:24px'>A production-style REST API with JWT auth and role-based access control.</p>",
-        unsafe_allow_html=True,
-    )
+    warm_up_backend()
  
-    st.markdown("""
-    <div class="demo-box">
-        <b>🔑 Demo Credentials</b><br><br>
-        <b>Admin</b> — full access (create projects, manage users, assign roles)<br>
-        &nbsp;&nbsp;Email: <b>admin@taskdemo.com</b> &nbsp;|&nbsp; Password: <b>81iBtLus8J@</b><br><br>
-        <b>Manager</b> — create and manage tasks<br>
-        &nbsp;&nbsp;Email: <b>manager@taskdemo.com</b> &nbsp;|&nbsp; Password: <b>muQ9OLT1ZZ!</b><br><br>
-        <b>Viewer</b> — see only tasks assigned to them<br>
-        &nbsp;&nbsp;Email: <b>viewer@taskdemo.com</b> &nbsp;|&nbsp; Password: <b>bQ3wJlNj9N$</b>
-    </div>
-    """, unsafe_allow_html=True)
+    _, center, _ = st.columns([1, 1.7, 1])
+    with center:
+        tags_html = "".join(f"<span class='tag'>{t}</span>" for t in TECH_TAGS)
+        st.markdown(
+            "<h1 style='color:#0d9488;margin:36px 0 4px'>✅ Task Manager</h1>"
+            "<p style='color:#64748b;margin-bottom:14px'>A production-style REST API with JWT auth, "
+            "role-based access control and an audit trail.</p>" + tags_html,
+            unsafe_allow_html=True,
+        )
  
-    tab_login, tab_register = st.tabs(["Login", "Register"])
+        available_demos = [a for a in DEMO_ACCOUNTS if get_secret(a[3])]
+        if available_demos:
+            st.markdown("<div class='section-title' style='margin-top:18px'>Try the live demo</div>", unsafe_allow_html=True)
+            st.caption("One click, no sign-up. Pick a role to see what each one can do.")
+            demo_cols = st.columns(len(available_demos))
+            for col, (key, label, email, secret_name, desc) in zip(demo_cols, available_demos):
+                with col:
+                    if st.button(f"Try as {label}", key=f"demo_{key}", use_container_width=True):
+                        do_login(email, get_secret(secret_name))
+                    st.caption(desc)
+            st.markdown("<div class='or-divider'>or sign in with your own account</div>", unsafe_allow_html=True)
  
-    with tab_login:
-        email = st.text_input("Email", key="login_email")
-        password = st.text_input("Password", type="password", key="login_pass")
-        if st.button("Login", key="btn_login"):
-            if not email or not password:
-                st.warning("Enter both email and password.")
-            else:
-                try:
-                    r = requests.post(
-                        f"{API_URL}/auth/login",
-                        data={"username": email, "password": password},
-                        timeout=20,
-                    )
-                    if r.status_code == 200:
-                        payload = r.json()
-                        st.session_state.token = payload["access_token"]
-                        st.session_state.refresh_token = payload["refresh_token"]
-                        st.rerun()
-                    elif r.status_code == 429:
-                        st.error("Too many login attempts. Wait a minute and try again.")
-                    else:
-                        st.error(extract_error_detail(r))
-                except Exception as e:
-                    st.error(f"Could not reach server: {e}")
+        tab_login, tab_register = st.tabs(["Login", "Register"])
  
-    with tab_register:
-        st.caption("Register a new account. New users get 'viewer' role by default — an admin can promote you. Password must be 8–72 characters.")
-        reg_email = st.text_input("Email", key="reg_email")
-        reg_pass = st.text_input("Password", type="password", key="reg_pass")
-        if st.button("Register", key="btn_register"):
-            if not reg_email or not reg_pass:
-                st.warning("Fill in both fields.")
-            elif not 8 <= len(reg_pass) <= 72:
-                st.warning("Password must be between 8 and 72 characters.")
-            else:
-                try:
-                    r = requests.post(
-                        f"{API_URL}/auth/register",
-                        json={"email": reg_email, "password": reg_pass},
-                        timeout=20,
-                    )
-                    if r.status_code == 201:
-                        st.success("Account created! Switch to the Login tab.")
-                    else:
-                        st.error(extract_error_detail(r))
-                except Exception as e:
-                    st.error(f"Could not reach server: {e}")
+        with tab_login:
+            email = st.text_input("Email", key="login_email")
+            password = st.text_input("Password", type="password", key="login_pass")
+            if st.button("Login", key="btn_login"):
+                if not email or not password:
+                    st.warning("Enter both email and password.")
+                else:
+                    do_login(email, password)
+ 
+        with tab_register:
+            st.caption(
+                "Register a new account. New users start with the 'user' role and see only tasks assigned to them; "
+                "an admin can promote you. Password must be 8–72 characters."
+            )
+            reg_email = st.text_input("Email", key="reg_email")
+            reg_pass = st.text_input("Password", type="password", key="reg_pass")
+            if st.button("Register", key="btn_register"):
+                if not reg_email or not reg_pass:
+                    st.warning("Fill in both fields.")
+                elif not 8 <= len(reg_pass) <= 72:
+                    st.warning("Password must be between 8 and 72 characters.")
+                else:
+                    try:
+                        r = requests.post(
+                            f"{API_URL}/auth/register",
+                            json={"email": reg_email, "password": reg_pass},
+                            timeout=60,
+                        )
+                        if r.status_code == 201:
+                            st.success("Account created! Switch to the Login tab.")
+                        else:
+                            st.error(extract_error_detail(r))
+                    except Exception as e:
+                        st.error(f"Could not reach server: {e}")
+ 
+        st.markdown(
+            f"<div class='footer-links'><a href='{GITHUB_URL}' target='_blank'>GitHub repo</a>"
+            f" &nbsp;·&nbsp; <a href='{API_URL}/docs' target='_blank'>Interactive API docs</a></div>",
+            unsafe_allow_html=True,
+        )
  
     st.stop()
  
@@ -628,3 +710,4 @@ elif menu == "Users":
             st.info("No other users to manage.")
     else:
         st.info("No users found.")
+ 
