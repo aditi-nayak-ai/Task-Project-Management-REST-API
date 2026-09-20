@@ -1,3 +1,4 @@
+
 import os
 import streamlit as st
 import requests
@@ -242,12 +243,14 @@ if not st.session_state.token:
                     st.error(f"Could not reach server: {e}")
  
     with tab_register:
-        st.caption("Register a new account. New users get 'viewer' role by default — an admin can promote you.")
+        st.caption("Register a new account. New users get 'viewer' role by default — an admin can promote you. Password must be 8–72 characters.")
         reg_email = st.text_input("Email", key="reg_email")
         reg_pass = st.text_input("Password", type="password", key="reg_pass")
         if st.button("Register", key="btn_register"):
             if not reg_email or not reg_pass:
                 st.warning("Fill in both fields.")
+            elif not 8 <= len(reg_pass) <= 72:
+                st.warning("Password must be between 8 and 72 characters.")
             else:
                 try:
                     r = requests.post(
