@@ -1,4 +1,3 @@
-
 def test_register_then_login_returns_token_pair(client):
     r = client.post("/auth/register", json={"email": "new@test.com", "password": "Passw0rd1!"})
     assert r.status_code == 201
