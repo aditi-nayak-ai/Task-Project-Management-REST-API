@@ -393,9 +393,63 @@ elif menu == "Projects":
         st.dataframe(df, use_container_width=True, hide_index=True)
  
         if is_admin:
+            project_options = {p["name"]: p["id"] for p in projects}
+ 
+            st.markdown("---")
+            st.markdown("**Project Managers**")
+            st.caption(
+                "A manager can create and update tasks only in projects they are assigned to here. "
+                "Admins can act on every project, so they never need to be added."
+            )
+ 
+            all_users = api_get("/users/", params={"limit": 100})
+            email_by_id = {u["id"]: u["email"] for u in all_users}
+            manager_users = [u for u in all_users if u["role"] == "manager"]
+ 
+            mgr_project = st.selectbox("Project", list(project_options.keys()), key="mgr_proj")
+            mgr_pid = project_options[mgr_project]
+            current_links = api_get(f"/projects/{mgr_pid}/managers")
+ 
+            if current_links:
+                st.dataframe(
+                    pd.DataFrame(
+                        [{"User ID": m["user_id"], "Email": email_by_id.get(m["user_id"], "unknown")} for m in current_links]
+                    ),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            else:
+                st.info("No managers are assigned to this project yet.")
+ 
+            if not manager_users:
+                st.info("No user has the 'manager' role yet. Promote a user on the Users page first.")
+            else:
+                assigned_ids = {m["user_id"] for m in current_links}
+                add_options = {u["email"]: u["id"] for u in manager_users if u["id"] not in assigned_ids}
+                remove_options = {
+                    email_by_id.get(uid, f"user {uid}"): uid for uid in assigned_ids
+                }
+ 
+                col_add, col_remove = st.columns(2)
+                with col_add:
+                    if add_options:
+                        add_pick = st.selectbox("Add manager", list(add_options.keys()), key="mgr_add")
+                        if st.button("Add to project", key="btn_mgr_add"):
+                            if api_post(f"/projects/{mgr_pid}/managers/{add_options[add_pick]}"):
+                                st.success(f"{add_pick} can now manage '{mgr_project}'.")
+                                st.rerun()
+                    else:
+                        st.caption("Every manager is already assigned to this project.")
+                with col_remove:
+                    if remove_options:
+                        remove_pick = st.selectbox("Remove manager", list(remove_options.keys()), key="mgr_remove")
+                        if st.button("Remove from project", key="btn_mgr_remove"):
+                            if api_delete(f"/projects/{mgr_pid}/managers/{remove_options[remove_pick]}"):
+                                st.success(f"Removed {remove_pick} from '{mgr_project}'.")
+                                st.rerun()
+ 
             st.markdown("---")
             st.markdown("**Delete Project**")
-            project_options = {p["name"]: p["id"] for p in projects}
             selected = st.selectbox("Select project", list(project_options.keys()), key="del_proj")
             if st.button("🗑️ Delete Selected Project"):
                 if api_delete(f"/projects/{project_options[selected]}"):
@@ -413,6 +467,14 @@ elif menu == "Tasks":
     projects = api_get("/projects/", params={"limit": 100})
     project_map = {p["name"]: p["id"] for p in projects}
  
+    # Only admins may list users, so only admins get an assignee dropdown.
+    # Managers can still assign by typing a user ID.
+    task_users = api_get("/users/", params={"limit": 100}) if is_admin else []
+    email_by_id = {u["id"]: u["email"] for u in task_users}
+    assignee_ids = {u["email"]: u["id"] for u in task_users}
+    UNASSIGNED = "— Unassigned —"
+    KEEP_CURRENT = "— Keep current —"
+ 
     if is_manager:
         with st.expander("➕ Create New Task"):
             t_title = st.text_input("Title", key="task_title")
@@ -426,6 +488,20 @@ elif menu == "Tasks":
             else:
                 st.warning("No projects available. An admin must create a project first.")
                 t_proj = None
+ 
+            if not is_admin:
+                st.caption("You can only create tasks in projects an admin has assigned you to.")
+ 
+            if is_admin:
+                t_assignee = st.selectbox(
+                    "Assign to (optional)", [UNASSIGNED] + list(assignee_ids.keys()), key="task_assignee"
+                )
+                t_assigned_to = assignee_ids.get(t_assignee)
+            else:
+                t_assigned_id = st.number_input(
+                    "Assign to user ID (optional, 0 = nobody)", min_value=0, step=1, value=0, key="task_assignee_id"
+                )
+                t_assigned_to = int(t_assigned_id) or None
  
             if st.button("Create Task"):
                 if not t_title.strip():
@@ -442,6 +518,8 @@ elif menu == "Tasks":
                     }
                     if t_due:
                         payload["due_date"] = t_due.isoformat() + "T00:00:00"
+                    if t_assigned_to:
+                        payload["assigned_to"] = t_assigned_to
                     result = api_post("/tasks/", payload)
                     if result:
                         st.success(f"Task '{result['title']}' created.")
@@ -468,6 +546,11 @@ elif menu == "Tasks":
         display_cols = ["id", "title", "status", "priority", "due_date", "project_id", "assigned_to"]
         display_cols = [c for c in display_cols if c in df.columns]
         display = df[display_cols].copy()
+ 
+        if is_admin and "assigned_to" in display.columns:
+            display["assigned_to"] = display["assigned_to"].apply(
+                lambda v: "—" if pd.isna(v) else email_by_id.get(int(v), f"user {int(v)}")
+            )
         display.columns = [c.replace("_", " ").title() for c in display_cols]
  
         if "Due Date" in display.columns:
@@ -477,7 +560,7 @@ elif menu == "Tasks":
  
         if is_manager:
             st.markdown("---")
-            st.markdown("**Update Task Status**")
+            st.markdown("**Update Task**")
  
             # Each task carries a `version` that the backend uses for
             # optimistic concurrency. `tasks` is re-fetched on every Streamlit
@@ -488,17 +571,21 @@ elif menu == "Tasks":
             selected_task = st.selectbox("Select Task", list(task_options.keys()), key="upd_task")
             new_status = st.selectbox("New Status", ["todo", "in_progress", "done"], key="upd_status")
             new_priority = st.selectbox("New Priority", ["low", "medium", "high"], key="upd_priority")
+            if is_admin:
+                new_assignee = st.selectbox(
+                    "Assign to", [KEEP_CURRENT, UNASSIGNED] + list(assignee_ids.keys()), key="upd_assignee"
+                )
  
             if st.button("Update Task"):
                 task_id = task_options[selected_task]
-                result = api_patch(
-                    f"/tasks/{task_id}",
-                    {
-                        "status": new_status,
-                        "priority": new_priority,
-                        "version": task_versions[task_id],
-                    },
-                )
+                update_payload = {
+                    "status": new_status,
+                    "priority": new_priority,
+                    "version": task_versions[task_id],
+                }
+                if is_admin and new_assignee != KEEP_CURRENT:
+                    update_payload["assigned_to"] = None if new_assignee == UNASSIGNED else assignee_ids[new_assignee]
+                result = api_patch(f"/tasks/{task_id}", update_payload)
                 if result:
                     st.success("Task updated.")
                     st.rerun()
