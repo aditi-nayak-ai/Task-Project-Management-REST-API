@@ -29,7 +29,7 @@ def _issue_token_pair(user: User, db: Session) -> Token:
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
-@limiter.limit("10/minute")
+@limiter.limit("30/minute")
 def register(request: Request, user: UserCreate, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == user.email).first()
     if existing:
